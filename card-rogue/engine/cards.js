@@ -205,11 +205,19 @@ const CARDS = {
   }
 };
 
-// 返回卡牌实例副本
+// 将描述中的 {key} 替换为 params 中的实际数值
+function interpolateDesc(desc, params) {
+  if (!params) return desc;
+  return desc.replace(/\{(\w+)\}/g, (_, key) => params[key] !== undefined ? params[key] : `{${key}}`);
+}
+
+// 返回卡牌实例副本（描述已插值）
 function getCard(id) {
   const template = CARDS[id];
   if (!template) return null;
-  return { ...template };
+  const card = { ...template };
+  card.desc = interpolateDesc(card.desc, card.params);
+  return card;
 }
 
 // 所有可奖励卡牌池（排除初始和特殊牌）
