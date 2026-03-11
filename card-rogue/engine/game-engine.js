@@ -88,7 +88,12 @@
   }
 
   function serializeCard(c) {
-    return { id: c.id, name: c.name, cost: c.cost, type: c.type, desc: c.desc, rarity: c.rarity, unplayable: !!c.unplayable };
+    // 确保描述中的 {key} 被替换为实际数值
+    let desc = c.desc || '';
+    if (c.params) {
+      desc = desc.replace(/\{(\w+)\}/g, (_, key) => c.params[key] !== undefined ? c.params[key] : `{${key}}`);
+    }
+    return { id: c.id, name: c.name, cost: c.cost, type: c.type, desc, rarity: c.rarity, unplayable: !!c.unplayable };
   }
   function serializeEnemy(e) {
     return {
