@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>卡牌肉鸽 · EasyClaw</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     主菜单
+══════════════════════════════════════ -->
+<div id="screen-menu" class="screen">
+  <div class="menu-title">
+    <div style="font-size:72px;margin-bottom:8px">🃏</div>
+    <h1>卡牌肉鸽</h1>
+    <p>Card Rogue · by EasyClaw</p>
+  </div>
+  <button id="btn-start" class="btn-primary">开始冒险</button>
+  <a href="debug/debug-panel.html" target="_blank"
+     style="font-size:12px;color:var(--muted);text-decoration:none;margin-top:-16px">
+    🐛 调试面板
+  </a>
+</div>
+
+<!-- ══════════════════════════════════════
+     地图
+══════════════════════════════════════ -->
+<div id="screen-map" class="screen">
+  <div class="container" style="display:flex;flex-direction:column;height:100%;padding:20px;gap:16px">
+    <div class="map-header">
+      <div class="map-title">🗺 选择路线</div>
+      <div class="player-stats-mini">
+        <div class="hp-bar-mini">❤️ <span id="mini-hp">—</span></div>
+        <a href="debug/debug-panel.html" target="_blank" style="font-size:11px;color:var(--muted);text-decoration:none">🐛 Debug</a>
+      </div>
+    </div>
+    <div class="map-canvas" id="map-canvas"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     战斗
+══════════════════════════════════════ -->
+<div id="screen-combat" class="screen">
+  <!-- 顶部状态栏 -->
+  <div class="combat-topbar">
+    <div class="player-hp-wrap">
+      <div class="hp-label">生命值</div>
+      <div class="hp-bar-outer">
+        <div class="hp-bar-inner" id="player-hp-bar" style="width:100%"></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <span class="hp-text" id="player-hp-text">80 / 80</span>
+        <span class="block-info" id="player-block-text"></span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+      <div id="player-statuses" class="status-badges"></div>
+      <span class="turn-info" id="turn-text">第 1 回合</span>
+    </div>
+
+    <a href="debug/debug-panel.html" target="_blank" style="font-size:11px;color:var(--muted);text-decoration:none">🐛 Debug</a>
+  </div>
+
+  <!-- 战斗主区域 -->
+  <div class="combat-arena">
+    <div class="arena-bg"></div>
+
+    <!-- 玩家 -->
+    <div class="player-figure">
+      <div class="player-avatar" id="player-avatar">🧙</div>
+      <div style="font-size:12px;color:var(--muted)">你</div>
+    </div>
+
+    <!-- 敌人 -->
+    <div class="enemies-area" id="enemies-area"></div>
+  </div>
+
+  <!-- 战斗日志 -->
+  <div class="combat-log" id="combat-log"></div>
+
+  <!-- 底部区域：能量 + 手牌 -->
+  <div class="combat-bottom">
+    <div class="energy-row">
+      <div class="energy-display">
+        <div class="energy-orb" id="energy-cur">3</div>
+        <span class="energy-label"><span id="energy-max">/ 3</span> 能量</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted)" id="deck-info"></div>
+      <button class="btn-end-turn" id="btn-end-turn">结束回合 →</button>
+    </div>
+    <div class="hand-area" id="hand-area"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     奖励
+══════════════════════════════════════ -->
+<div id="screen-reward" class="screen">
+  <div class="reward-title">
+    🎁 战斗奖励
+    <small>选择一张卡牌加入你的牌组</small>
+  </div>
+  <div class="reward-cards" id="reward-cards"></div>
+  <button id="btn-skip-reward" class="btn-skip">跳过奖励</button>
+</div>
+
+<!-- ══════════════════════════════════════
+     游戏结束
+══════════════════════════════════════ -->
+<div id="screen-gameover" class="screen">
+  <div id="gameover-icon" class="gameover-icon">💀</div>
+  <div id="gameover-title" class="gameover-title defeat">你已阵亡</div>
+  <p id="gameover-sub" class="gameover-sub"></p>
+  <button class="btn-restart">重新开始</button>
+</div>
+
+<!-- ── 逻辑层（顺序不可变）── -->
+<script src="engine/cards.js"></script>
+<script src="engine/enemies.js"></script>
+<script src="engine/map-gen.js"></script>
+<script src="engine/game-engine.js"></script>
+<!-- ── 表现层 ── -->
+<script src="view/app.js"></script>
+
+</body>
+</html>
