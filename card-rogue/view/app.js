@@ -182,6 +182,12 @@
     }
   }
 
+  // 清理描述中残留的 {key} 模板占位符
+  function cleanDesc(desc) {
+    const defaults = { dmg: '?', block: '?', hp: '?' };
+    return (desc || '').replace(/\{(\w+)\}/g, (_, k) => defaults[k] || '?');
+  }
+
   function renderHand(hand, energy) {
     const area = document.getElementById('hand-area');
     area.innerHTML = '';
@@ -199,7 +205,7 @@
         <div class="card-cost">${card.cost === -1 ? 'X' : card.cost}</div>
         <div class="card-icon">${cardIcon(card)}</div>
         <div class="card-name">${card.name}</div>
-        <div class="card-desc">${card.desc}</div>
+        <div class="card-desc">${cleanDesc(card.desc)}</div>
       `;
 
       if (!cantPlay) {
