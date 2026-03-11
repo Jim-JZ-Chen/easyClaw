@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <title>🐛 GameEngine Debug Panel</title>
+  <style>
+    :root { --bg:#0d0d14; --surface:#151520; --border:rgba(255,255,255,0.08); --accent:#7c6fff; --green:#52c878; --red:#e05252; --text:#e0d8c8; --muted:#6b6880; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 13px; display: flex; height: 100vh; overflow: hidden; }
+    .panel { display: flex; flex-direction: column; padding: 12px; gap: 8px; }
+    .panel.left { width: 380px; border-right: 1px solid var(--border); flex-shrink: 0; }
+    .panel.right { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 8px; }
+    h2 { font-size: 14px; color: var(--accent); margin-bottom: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    label { color: var(--muted); font-size: 11px; display: block; margin-bottom: 3px; }
+    textarea, input[type=text], select {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 8px; border-radius: 6px; font-family: inherit; font-size: 12px;
+      outline: none; resize: vertical;
+    }
+    textarea:focus, input:focus { border-color: var(--accent); }
+    button {
+      padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;
+      font-family: inherit; font-size: 12px; font-weight: 700; transition: all 0.15s;
+    }
+    .btn-dispatch { background: var(--accent); color: white; }
+    .btn-dispatch:hover { opacity: 0.85; }
+    .btn-clear { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+    .btn-clear:hover { color: var(--text); }
+    .btn-preset { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 5px 10px; font-size: 11px; }
+    .btn-preset:hover { border-color: var(--accent); color: var(--accent); }
+
+    .presets { display: flex; flex-wrap: wrap; gap: 4px; }
+    .action-area { display: flex; flex-direction: column; gap: 6px; }
+    .btn-row { display: flex; gap: 6px; }
+
+    /* 状态树 */
+    .state-view { flex: 1; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
+    .state-key { color: #7c6fff; }
+    .state-string { color: #52c878; }
+    .state-number { color: #e0a030; }
+    .state-bool-true { color: #52c878; }
+    .state-bool-false { color: var(--red); }
+    .state-null { color: var(--muted); }
+    pre { font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+
+    /* 事件日志 */
+    .event-log { height: 160px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+    .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .log-entry .ts { color: var(--muted); font-size: 10px; }
+    .log-entry.dispatch { border-left: 3px solid var(--accent); padding-left: 6px; }
+    .log-entry.update   { border-left: 3px solid var(--green); padding-left: 6px; }
+    .log-entry.error    { border-left: 3px solid var(--red); padding-left: 6px; color: var(--red); }
+
+    .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+    .tag { display: inline-block; background: rgba(124,111,255,0.1); border: 1px solid rgba(124,111,255,0.2); color: var(--accent); padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px; }
+    .phase-badge { font-size: 16px; font-weight: 700; color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- 左侧：控制面板 -->
+<div class="panel left">
+  <h2>🐛 GameEngine Debug Panel</h2>
+  <p style="color:var(--muted);font-size:11px;margin-bottom:8px;">直接向逻辑层发送 JSON action，观察状态变化</p>
+
+  <div>
+    <label>快捷预设</label>
+    <div class="presets">
+      <button class="btn-preset" onclick="preset('START_GAME')">🎮 开始游戏</button>
+      <button class="btn-preset" onclick="preset('END_TURN')">⏭ 结束回合</button>
+      <button class="btn-preset" onclick="preset('GET_STATE')">📊 获取状态</button>
+      <button class="btn-preset" onclick="preset('PLAY_CARD')">🃏 出牌</button>
+      <button class="btn-preset" onclick="preset('PICK_REWARD_SKIP')">⏭ 跳过奖励</button>
+      <button class="btn-preset" onclick="preset('SELECT_NODE')">🗺 选择节点</button>
+    </div>
+  </div>
+
+  <div class="action-area">
+    <label>Action JSON</label>
+    <textarea id="action-input" rows="10" spellcheck="false">{
+  "type": "START_GAME",
+  "payload": {
+    "seed": 42
+  }
+}</textarea>
+    <div class="btn-row">
+      <button class="btn-dispatch" onclick="dispatchAction()">▶ Dispatch</button>
+      <button class="btn-clear" onclick="clearLog()">🗑 清空日志</button>
+    </div>
+  </div>
+
+  <div>
+    <label>快捷出牌（从当前手牌选）</label>
+    <select id="hand-select"><option value="">-- 选择手牌 --</option></select>
+    <button class="btn-preset" style="margin-top:4px;width:100%" onclick="playSelectedCard()">▶ 打出选中的牌</button>
+  </div>
+
+  <div>
+    <label>选择节点（从当前可用节点选）</label>
+    <select id="node-select"><option value="">-- 选择节点 --</option></select>
+    <button class="btn-preset" style="margin-top:4px;width:100%" onclick="selectNode()">▶ 进入节点</button>
+  </div>
+
+  <div style="margin-top:auto;padding-top:8px;border-top:1px solid var(--border)">
+    <span class="section-title">事件日志</span>
+    <div class="event-log" id="event-log"></div>
+  </div>
+</div>
+
+<!-- 右侧：状态树 -->
+<div class="panel right">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <h2>State Snapshot</h2>
+    <div id="phase-badge" class="phase-badge">—</div>
+  </div>
+
+  <!-- 玩家状态速览 -->
+  <div id="player-quick" style="display:flex;gap:16px;flex-wrap:wrap;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px"></div>
+
+  <!-- 敌人速览 -->
+  <div id="enemy-quick" style="display:flex;gap:12px;flex-wrap:wrap;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px"></div>
+
+  <!-- 完整 JSON -->
+  <label>完整状态 JSON（折叠手牌/牌堆）</label>
+  <div class="state-view"><pre id="state-json">等待第一条状态...</pre></div>
+</div>
+
+<!-- 引擎依赖 -->
+<script src="../engine/cards.js"></script>
+<script src="../engine/enemies.js"></script>
+<script src="../engine/map-gen.js"></script>
+<script src="../engine/game-engine.js"></script>
+
+<script>
+  let _lastState = null;
+
+  // 注册回调
+  GameEngine.onStateUpdate(function(update) {
+    _lastState = update.state;
+    addLog('update', `STATE_UPDATE phase=${update.state.phase} turn=${update.state.turn}`);
+    renderState(update.state);
+  });
+
+  // ── 渲染状态
+  function renderState(s) {
+    document.getElementById('phase-badge').textContent = s.phase;
+
+    // 玩家速览
+    const pq = document.getElementById('player-quick');
+    pq.innerHTML = `
+      <span>❤️ ${s.player.hp}/${s.player.maxHp}</span>
+      <span>🛡 ${s.player.block}</span>
+      <span>⚡ ${s.player.energy}/${s.player.maxEnergy}</span>
+      <span>🃏 手牌 ${s.player.hand.length} | 牌堆 ${s.player.deck.length} | 弃牌 ${s.player.discard.length}</span>
+      ${Object.entries(s.player.statuses).map(([k,v])=>`<span class="tag">${k}:${v}</span>`).join('')}
+    `;
+
+    // 更新手牌下拉
+    const hs = document.getElementById('hand-select');
+    hs.innerHTML = '<option value="">-- 选择手牌 --</option>';
+    s.player.hand.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = `${c.name} (${c.cost}费)`;
+      hs.appendChild(o);
+    });
+
+    // 敌人速览
+    const eq = document.getElementById('enemy-quick');
+    eq.innerHTML = s.enemies.map(e =>
+      `<span>${e.icon} ${e.name}: ❤️${e.hp}/${e.maxHp} 🛡${e.block} → ${e.intent?.desc||'?'}</span>`
+    ).join('  |  ');
+
+    // 节点下拉
+    const ns = document.getElementById('node-select');
+    ns.innerHTML = '<option value="">-- 选择节点 --</option>';
+    if (s.map) {
+      s.map.floors.forEach(f => {
+        f.nodes.filter(n => n.available && !n.visited).forEach(n => {
+          const o = document.createElement('option');
+          o.value = n.id;
+          o.textContent = `[F${f.floorNum}] ${n.type} (${n.id})`;
+          ns.appendChild(o);
+        });
+      });
+    }
+
+    // 完整 JSON（折叠大数组）
+    const compact = {
+      ...s,
+      player: {
+        ...s.player,
+        hand: s.player.hand.map(c => c.name),
+        deck: `[${s.player.deck.length} cards]`,
+        discard: `[${s.player.discard.length} cards]`,
+      }
+    };
+    document.getElementById('state-json').innerHTML = syntaxHighlight(JSON.stringify(compact, null, 2));
+  }
+
+  // ── 语法高亮
+  function syntaxHighlight(json) {
+    return json
+      .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?)/g, function(m) {
+        return m.endsWith(':') ? `<span class="state-key">${m}</span>` : `<span class="state-string">${m}</span>`;
+      })
+      .replace(/\b(\d+\.?\d*)\b/g, '<span class="state-number">$1</span>')
+      .replace(/\btrue\b/g,  '<span class="state-bool-true">true</span>')
+      .replace(/\bfalse\b/g, '<span class="state-bool-false">false</span>')
+      .replace(/\bnull\b/g,  '<span class="state-null">null</span>');
+  }
+
+  // ── dispatch
+  function dispatchAction() {
+    const raw = document.getElementById('action-input').value.trim();
+    try {
+      const action = JSON.parse(raw);
+      addLog('dispatch', `DISPATCH → ${action.type}`);
+      GameEngine.dispatch(action);
+    } catch(e) {
+      addLog('error', `JSON 解析失败: ${e.message}`);
+    }
+  }
+
+  function playSelectedCard() {
+    const cardId = document.getElementById('hand-select').value;
+    if (!cardId) return;
+    const enemy = _lastState?.enemies?.find(e => e.alive);
+    const action = { type: 'PLAY_CARD', payload: { cardId, targetId: enemy?.instanceId || null } };
+    document.getElementById('action-input').value = JSON.stringify(action, null, 2);
+    dispatchAction();
+  }
+
+  function selectNode() {
+    const nodeId = document.getElementById('node-select').value;
+    if (!nodeId) return;
+    const action = { type: 'SELECT_NODE', payload: { nodeId } };
+    document.getElementById('action-input').value = JSON.stringify(action, null, 2);
+    dispatchAction();
+  }
+
+  // ── 预设
+  const PRESETS = {
+    START_GAME:      { type: 'START_GAME', payload: { seed: 42 } },
+    END_TURN:        { type: 'END_TURN', payload: {} },
+    GET_STATE:       { type: 'GET_STATE', payload: {} },
+    PLAY_CARD:       { type: 'PLAY_CARD', payload: { cardId: 'strike', targetId: null } },
+    PICK_REWARD_SKIP:{ type: 'PICK_REWARD', payload: { cardId: null } },
+    SELECT_NODE:     { type: 'SELECT_NODE', payload: { nodeId: 'f0n0' } },
+  };
+  function preset(key) {
+    document.getElementById('action-input').value = JSON.stringify(PRESETS[key], null, 2);
+  }
+
+  // ── 日志
+  function addLog(type, msg) {
+    const log = document.getElementById('event-log');
+    const ts = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `<span class="ts">${ts}</span> ${msg}`;
+    log.insertBefore(entry, log.firstChild);
+    if (log.children.length > 50) log.removeChild(log.lastChild);
+  }
+  function clearLog() {
+    document.getElementById('event-log').innerHTML = '';
+    document.getElementById('state-json').textContent = '等待第一条状态...';
+  }
+
+  // 快捷键 Ctrl+Enter 发送
+  document.getElementById('action-input').addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') dispatchAction();
+  });
+
+  addLog('update', '调试面板已就绪，请先 Dispatch START_GAME');
+</script>
+</body>
+</html>
